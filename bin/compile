@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+
+SOURCE_DIR="$(dirname $0)/../compiled"
+
+
+S3_BASE="https://s3-eu-west-1.amazonaws.com/heroku.repixl.com"
+
+mkdir -p "$BUILD_DIR/vendor"
+
+install_dependency() {
+  tarball="$1"
+  cachepath="$CACHE_DIR/$tarball"
+  vendorpath=$(echo $tarball | sed 's/\.tgz//')
+  depname=$(echo $tarball | sed 's/-.*\.tgz//')
+  if [ ! -r "$cachepath" ]; then
+    echo "-----> Installing $depname"
+    echo "       Downloading: $tarball"
+    mkdir -p $(dirname $cachepath)
+    curl --silent --show-error  -o $cachepath "$S3_BASE/$tarball"
+  else
+    echo "-----> Using cached $depname"
+  fi
+  mkdir -p "$BUILD_DIR/vendor/$vendorpath"
+  tar -xzf $cachepath -C "$BUILD_DIR/vendor/$vendorpath"
+}
+
+##install_dependency "ImageMagick-6.9.3-2.tgz"
+#install_dependency "LibRaw-0.17.1.tgz"
+##install_dependency "exiftool-10.10.tgz"
+
+PROFILE_PATH="$BUILD_DIR/.profile.d/raw.sh"
+mkdir -p $(dirname $PROFILE_PATH)
+#echo "export PATH=/app/vendor/LibRaw-0.17.1/bin:\$PATH" >> $PROFILE_PATH
+##echo "export PATH=/app/vendor/exiftool-10.10:\$PATH" >> $PROFILE_PATH
+##echo "export PATH=/app/vendor/ImageMagick-6.9.3-2/bin:\$PATH" >> $PROFILE_PATH
+#echo "export LD_LIBRARY_PATH=/app/vendor/LibRaw-0.17.1/lib:\$LD_LIBRARY_PATH" >> $PROFILE_PATH
+##echo "export LD_LIBRARY_PATH=/app/vendor/ImageMagick-6.9.3-2/lib:\$LD_LIBRARY_PATH" >> $PROFILE_PATH
+
+
+echo "-----> New18, libraw-0.17.2"
+mkdir -p "$BUILD_DIR/vendor/libraw-0.17.2"
+tar -xzf "$SOURCE_DIR/libraw-0.17.2.tar.gz" -C "$BUILD_DIR/vendor/libraw-0.17.2"
+echo "export PATH=/app/vendor/libraw-0.17.2:\$PATH" >> $PROFILE_PATH
+echo "export LD_LIBRARY_PATH=/app/vendor/libraw-0.17.2:\$LD_LIBRARY_PATH" >> $PROFILE_PATH
+
+
+BUILD_DIR="$1"
+TARGET_DIR="$BUILD_DIR/vendor/im"
+
+##echo "-----> New18, imagemagick-lib-18"
+##mkdir -p "$BUILD_DIR/vendor/im"
+##tar -xzf "$SOURCE_DIR/imagemagick-lib-18.tar.gz" -C "$BUILD_DIR/vendor/im"
+
+#echo "-----> New18, inkscape-lib-18"
+#mkdir -p "$BUILD_DIR/vendor/im"
+#tar -xzf "$SOURCE_DIR/inkscape-lib-18.tar.gz" -C "$BUILD_DIR/vendor/im"
+
+
+echo "-----> Copying files to $TARGET_DIR"
+mkdir -p "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/anim_diff"
+cp "$SOURCE_DIR/anim_diff" "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/cwebp"
+cp "$SOURCE_DIR/cwebp" "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/dwebp"
+cp "$SOURCE_DIR/dwebp" "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/gif2webp"
+cp "$SOURCE_DIR/gif2webp" "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/JxrDecApp"
+cp "$SOURCE_DIR/JxrDecApp" "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/JxrEncApp"
+cp "$SOURCE_DIR/JxrEncApp" "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/vwebp"
+cp "$SOURCE_DIR/vwebp" "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/webpmux"
+cp "$SOURCE_DIR/webpmux" "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/bpgdec"
+cp "$SOURCE_DIR/bpgdec" "$TARGET_DIR"
+cp "$SOURCE_DIR/libpng16.so.16.18.0" "$TARGET_DIR"
+cp "$SOURCE_DIR/libpng16.so.16" "$TARGET_DIR"
+cp "$SOURCE_DIR/libpng16.so" "$TARGET_DIR"
+
+chmod +x "$SOURCE_DIR/bpgenc"
+cp "$SOURCE_DIR/bpgenc" "$TARGET_DIR"
+
+# update PATH and LD_LIBRARY_PATH
+echo "-----> Updating environment variables"
+PROFILE_PATH="$BUILD_DIR/.profile.d/im.sh"
+mkdir -p $(dirname $PROFILE_PATH)
+echo "export PATH=/app/vendor/im:\$PATH" >> $PROFILE_PATH
+echo "export LD_LIBRARY_PATH=/app/vendor/im:\$LD_LIBRARY_PATH" >> $PROFILE_PATH
+
+
+echo "-----> Copying files to ImageMagick-config"
+mkdir -p "$TARGET_DIR/ImageMagick-config"
+unzip "$SOURCE_DIR/ImageMagick-config.zip" -d  "$TARGET_DIR/ImageMagick-config"
+echo "export MAGICK_CONFIGURE_PATH=/app/vendor/im/ImageMagick-config:\$MAGICK_CONFIGURE_PATH" >> $PROFILE_PATH
+
+
+:<<'END'
+echo "-----> Installing Ghostscript 9.16"
+BUILD_DIR=$1
+PACKAGE="https://s3.amazonaws.com/tgl.public/buildpacks/ghostscript/ghostscript.tgz"
+LOCATION="$BUILD_DIR/vendor/gs"
+
+mkdir -p $LOCATION
+curl $PACKAGE -s -o - | tar xzf - -C $LOCATION
+
+echo "-----> Building runtime environment for Ghostscript"
+mkdir -p $BUILD_DIR/.profile.d
+echo "export PATH=\"\$HOME/vendor/gs/bin:\$PATH\"" > $BUILD_DIR/.profile.d/ghostscript.sh
+
+
+echo "-----> Installing Ghostscript 9.23"
+BUILD_DIR=$1
+PACKAGE="https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs923/ghostscript-9.23-linux-x86_64.tgz"
+LOCATION="$BUILD_DIR/vendor/gs/others"
+
+mkdir -p $LOCATION
+curl $PACKAGE -L -s -o - | tar xzf - -C $LOCATION
+
+
+echo "-----> Installing GhostXPS"
+BUILD_DIR=$1
+#PACKAGE="https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs920/ghostxps-9.20-linux-x86_64.tgz"
+PACKAGE="https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs923/ghostxps-9.23-linux-x86_64.tgz"
+LOCATION="$BUILD_DIR/vendor/ghostxps"
+
+mkdir -p $LOCATION
+curl $PACKAGE -L -s -o - | tar xzf - -C $LOCATION
+
+echo "-----> Building runtime environment for GhostXPS"
+mkdir -p $BUILD_DIR/.profile.d
+echo "export PATH=\"\$HOME/vendor/ghostxps/ghostxps-9.23-linux-x86_64:\$PATH\"" > $BUILD_DIR/.profile.d/ghostxps.sh
+
+
+echo "-----> Installing GhostPCL"
+BUILD_DIR=$1
+#PACKAGE="https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs920/ghostpcl-9.20-linux-x86_64.tgz"
+PACKAGE="https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs923/ghostpcl-9.23-linux-x86_64.tgz"
+LOCATION="$BUILD_DIR/vendor/ghostpcl"
+
+mkdir -p $LOCATION
+curl $PACKAGE -L -s -o - | tar xzf - -C $LOCATION
+
+echo "-----> Building runtime environment for GhostPCL"
+mkdir -p $BUILD_DIR/.profile.d
+echo "export PATH=\"\$HOME/vendor/ghostpcl/ghostpcl-9.23-linux-x86_64:\$PATH\"" > $BUILD_DIR/.profile.d/ghostpcl.sh
+END
